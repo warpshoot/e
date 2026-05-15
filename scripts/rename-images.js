@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 'use strict';
 
-// Renames PNG files in images/ that do not yet follow the
-// YYYYMMDD-HHMM(-N).png convention. The target timestamp is the time the
+// Renames image files (PNG/JPG/JPEG) in images/ that do not yet follow the
+// YYYYMMDD-HHMM(-N).<ext> convention. The target timestamp is the time the
 // file was first added to git (its "upload time"); if that cannot be
 // determined, the file's mtime is used as a fallback. Renames are done
 // with `git mv` so they are staged for the auto-commit step.
@@ -14,7 +14,16 @@ const { execFileSync } = require('child_process');
 const ROOT = path.join(__dirname, '..');
 const IMAGES_DIR = path.join(ROOT, 'images');
 
-const NAME_RE = /^\d{8}-\d{4}(?:-\d+)?\.png$/i;
+const NAME_RE = /^\d{8}-\d{4}(?:-\d+)?\.(?:png|jpe?g)$/i;
+
+function extOf(f) {
+  return path.extname(f).toLowerCase();
+}
+
+function isImage(f) {
+  const ext = extOf(f);
+  return ext === '.png' || ext === '.jpg' || ext === '.jpeg';
+}
 
 function pad(n) {
   return String(n).padStart(2, '0');
@@ -50,20 +59,21 @@ function main() {
     throw err;
   }
 
-  const pngs = files.filter((f) => f.toLowerCase().endsWith('.png'));
-  const taken = new Set(pngs.filter((f) => NAME_RE.test(f)));
+  const images = files.filter(isImage);
+  const taken = new Set(images.filter((f) => NAME_RE.test(f)));
   const renames = [];
 
-  for (const file of pngs) {
+  for (const file of images) {
     if (NAME_RE.test(file)) continue;
 
     const relPath = path.posix.join('images', file);
+    const ext = extOf(file);
     const base = baseName(addedTime(relPath));
 
-    let candidate = `${base}.png`;
+    let candidate = `${base}${ext}`;
     let n = 2;
     while (taken.has(candidate)) {
-      candidate = `${base}-${n}.png`;
+      candidate = `${base}-${n}${ext}`;
       n += 1;
     }
     taken.add(candidate);
