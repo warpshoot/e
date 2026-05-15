@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>らくがきギャラリー</title>
+<style>
+  :root{
+    --paper:        #fafaf7;
+    --paper-pure:   #ffffff;
+    --paper-dark:   #14130f;
+    --ink:          #14130f;
+    --ink-mute:     rgba(20,19,15,.42);
+
+    --bg:           var(--paper-pure);
+    --fg:           var(--ink);
+
+    --pad-stage:    clamp(20px, 6vmin, 64px);
+    --safe-t: env(safe-area-inset-top, 0px);
+    --safe-r: env(safe-area-inset-right, 0px);
+    --safe-b: env(safe-area-inset-bottom, 0px);
+    --safe-l: env(safe-area-inset-left, 0px);
+
+    --type-sans: ui-sans-serif, -apple-system, "Helvetica Neue", Helvetica, "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+    --type-mono: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+
+    --fade-in:  120ms;
+    --fade-out: 700ms;
+  }
+
+  *,*::before,*::after{ box-sizing: border-box; }
+  html, body{
+    margin:0; padding:0;
+    height:100%;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--type-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    overscroll-behavior: none;
+  }
+
+  #app{
+    position: fixed; inset: 0;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    -webkit-user-select: none;
+    cursor: pointer;
+    padding:
+      calc(var(--pad-stage) + var(--safe-t))
+      calc(var(--pad-stage) + var(--safe-r))
+      calc(var(--pad-stage) + var(--safe-b))
+      calc(var(--pad-stage) + var(--safe-l));
+  }
+
+  #frame{
+    position: relative;
+    max-width: 100%;
+    max-height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+  }
+  #art{
+    display: block;
+    max-width: min(86vmin, 920px);
+    max-height: min(86vmin, 920px);
+  }
+  #art img{
+    display: block;
+    max-width: min(86vmin, 920px);
+    max-height: min(86vmin, 920px);
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    transition: opacity 180ms ease;
+  }
+  #app[data-holding="true"] #art img{
+    transition: opacity 80ms linear;
+    opacity: .96;
+  }
+
+  #message{
+    font: 500 13px/1.6 var(--type-sans);
+    color: var(--ink-mute);
+    text-align: center;
+  }
+
+  #counter{
+    position: fixed;
+    top: calc(20px + var(--safe-t));
+    left: 50%;
+    transform: translateX(-50%);
+    font: 500 11px/1 var(--type-mono);
+    letter-spacing: .06em;
+    color: var(--ink-mute);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--fade-out) ease;
+    font-variant-numeric: tabular-nums;
+    z-index: 5;
+  }
+  #counter[data-visible="true"]{
+    opacity: 1;
+    transition: opacity var(--fade-in) ease;
+  }
+
+  #toggle{
+    position: fixed;
+    bottom: calc(16px + var(--safe-b));
+    left: 50%;
+    transform: translateX(-50%);
+    width: 36px; height: 36px;
+    display: grid; place-items: center;
+    background: transparent;
+    border: 0;
+    padding: 0; margin: 0;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    z-index: 6;
+    color: var(--ink-mute);
+    transition: color 180ms ease;
+  }
+  #toggle:hover{ color: var(--fg); }
+  #toggle svg{
+    width: 20px; height: 20px;
+    display: block;
+    overflow: visible;
+    transition: transform 220ms cubic-bezier(.2,.7,.2,1);
+  }
+  #toggle[data-mode="random"]{ color: oklch(0.68 0.17 148); }
+  #toggle:active svg{ transform: scale(.88); }
+
+  .sr-only{
+    position:absolute; width:1px; height:1px; padding:0; margin:-1px;
+    overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0;
+  }
+
+  @media print{
+    #counter, #toggle{ display: none; }
+    html, body{ background: #fff; }
+  }
+</style>
+</head>
+<body>
+  <main id="app" aria-label="らくがきギャラリー">
+    <h1 class="sr-only">らくがきギャラリー — タップで次へ、長押しで連続送り</h1>
+
+    <div id="frame" aria-live="polite">
+      <div id="art" role="img" aria-label="らくがき"></div>
+    </div>
+
+    <div id="counter" aria-hidden="true">#01</div>
+
+    <button id="toggle" aria-label="シャッフルを切り替え（長押しで最初に戻る）" data-mode="chrono">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M16 3h5v5"></path>
+        <path d="M4 20 21 3"></path>
+        <path d="M21 16v5h-5"></path>
+        <path d="M15 15l6 6"></path>
+        <path d="M4 4l5 5"></path>
+      </svg>
+    </button>
+  </main>
+
+<script>
+(function(){
+  const PRELOAD_RADIUS = 5;
+
+  let manifest = [];
+  let TOTAL = 0;
+  let index = 0;
+  let mode = 'chrono';        // 'chrono' | 'random'
+  let shuffled = [];
+  let ready = false;
+
+  const app     = document.getElementById('app');
+  const art     = document.getElementById('art');
+  const counter = document.getElementById('counter');
+  const toggle  = document.getElementById('toggle');
+
+  const preloadCache = new Map();
+
+  function reshuffle(){
+    shuffled = Array.from({length: TOTAL}, (_, i) => i);
+    for (let i = shuffled.length - 1; i > 0; i--){
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+  }
+
+  // image id (manifest position) at a given display position
+  function idAt(pos){
+    const p = ((pos % TOTAL) + TOTAL) % TOTAL;
+    return mode === 'chrono' ? p : shuffled[p];
+  }
+  function currentId(){ return idAt(index); }
+
+  function srcFor(id){ return 'images/' + manifest[id].filename; }
+
+  function preload(id){
+    if (preloadCache.has(id)) return;
+    const img = new Image();
+    img.src = srcFor(id);
+    preloadCache.set(id, img);
+  }
+  function preloadAround(){
+    for (let d = -PRELOAD_RADIUS; d <= PRELOAD_RADIUS; d++){
+      preload(idAt(index + d));
+    }
+  }
+
+  let fadeTimer = null;
+  function flashCounter(){
+    counter.setAttribute('data-visible', 'true');
+    clearTimeout(fadeTimer);
+    fadeTimer = setTimeout(() => counter.setAttribute('data-visible', 'false'), 1600);
+  }
+
+  function render(){
+    if (!TOTAL) return;
+    const id = currentId();
+    const img = document.createElement('img');
+    img.src = srcFor(id);
+    img.alt = 'らくがき ' + manifest[id].filename;
+    img.draggable = false;
+    art.replaceChildren(img);
+    counter.textContent = '#' + String(index + 1).padStart(2, '0');
+    flashCounter();
+    preloadAround();
+  }
+
+  function advance(){
+    if (!ready) return;
+    index = (index + 1) % TOTAL;
+    render();
+  }
+
+  function switchMode(){
+    if (!ready) return;
+    const currentImg = currentId();
+    if (mode === 'chrono'){
+      reshuffle();
+      const pos = shuffled.indexOf(currentImg);
+      index = pos >= 0 ? pos : 0;
+      mode = 'random';
+    } else {
+      index = currentImg;
+      mode = 'chrono';
+    }
+    toggle.setAttribute('data-mode', mode);
+    flashCounter();
+  }
+
+  function resetToStart(){
+    if (!ready) return;
+    if (mode === 'random') reshuffle();
+    index = 0;
+    render();
+  }
+
+  /* ---- Tap / long-press on the stage ---- */
+  let pressStart = 0;
+  let pressTimer = null;
+  let holdTimer = null;
+  let holdActive = false;
+  const TAP_LIMIT = 320;
+  const HOLD_START_DELAY = 340;
+
+  function startHold(){
+    holdActive = true;
+    app.setAttribute('data-holding', 'true');
+    let delay = 260;
+    const min = 55;
+    const decay = 0.86;
+    (function tick(){
+      advance();
+      delay = Math.max(min, delay * decay);
+      holdTimer = setTimeout(tick, delay);
+    })();
+  }
+  function endHold(){
+    clearTimeout(holdTimer); holdTimer = null;
+    clearTimeout(pressTimer); pressTimer = null;
+    const was = holdActive;
+    holdActive = false;
+    app.removeAttribute('data-holding');
+    return was;
+  }
+
+  app.addEventListener('pointerdown', (e) => {
+    if (e.target.closest('#toggle')) return;
+    e.preventDefault();
+    if (!ready) return;
+    pressStart = Date.now();
+    pressTimer = setTimeout(() => { pressTimer = null; startHold(); }, HOLD_START_DELAY);
+  });
+  app.addEventListener('pointerup', (e) => {
+    if (e.target.closest('#toggle')) return;
+    e.preventDefault();
+    const wasHold = endHold();
+    if (!wasHold && Date.now() - pressStart < TAP_LIMIT) advance();
+  });
+  app.addEventListener('pointercancel', endHold);
+  app.addEventListener('pointerleave', endHold);
+
+  /* ---- Toggle: short-press = mode switch, long-press = reset ---- */
+  let togglePressTimer = null;
+  let toggleLongFired = false;
+  toggle.addEventListener('pointerdown', (e) => {
+    e.stopPropagation();
+    toggleLongFired = false;
+    togglePressTimer = setTimeout(() => {
+      toggleLongFired = true;
+      resetToStart();
+      flashCounter();
+    }, 520);
+  });
+  toggle.addEventListener('pointerup', (e) => {
+    e.stopPropagation();
+    clearTimeout(togglePressTimer);
+    if (toggleLongFired) return;
+    switchMode();
+  });
+  toggle.addEventListener('pointercancel', () => clearTimeout(togglePressTimer));
+  toggle.addEventListener('pointerleave', () => clearTimeout(togglePressTimer));
+
+  /* ---- Keyboard ---- */
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'Enter'){
+      e.preventDefault(); advance();
+    } else if (e.key === 'r' || e.key === 'R'){
+      switchMode();
+    } else if (e.key === 'Home' || e.key === '0'){
+      resetToStart();
+    }
+  });
+
+  function showMessage(text){
+    const el = document.createElement('div');
+    el.id = 'message';
+    el.textContent = text;
+    art.replaceChildren(el);
+  }
+
+  /* ---- Boot ---- */
+  fetch('manifest.json', { cache: 'no-cache' })
+    .then((r) => {
+      if (!r.ok) throw new Error('manifest ' + r.status);
+      return r.json();
+    })
+    .then((data) => {
+      manifest = Array.isArray(data) ? data : [];
+      TOTAL = manifest.length;
+      if (!TOTAL){
+        showMessage('画像がありません');
+        return;
+      }
+      reshuffle();
+      ready = true;
+      render();
+    })
+    .catch(() => {
+      showMessage('画像一覧を読み込めませんでした');
+    });
+})();
+</script>
+</body>
+</html>
