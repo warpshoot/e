@@ -26,6 +26,8 @@
 
     --fade-in:  120ms;
     --fade-out: 700ms;
+
+    --art-max: min(86vmin, 920px);
   }
 
   *,*::before,*::after{ box-sizing: border-box; }
@@ -68,13 +70,13 @@
   }
   #art{
     display: block;
-    max-width: min(86vmin, 920px);
-    max-height: min(86vmin, 920px);
+    max-width: var(--art-max);
+    max-height: var(--art-max);
   }
   #art img{
     display: block;
-    max-width: min(86vmin, 920px);
-    max-height: min(86vmin, 920px);
+    max-width: var(--art-max);
+    max-height: var(--art-max);
     width: auto;
     height: auto;
     object-fit: contain;
@@ -220,19 +222,19 @@
     }
   }
 
-  let fadeTimer = null;
-  function flashCounter(){
-    counter.setAttribute('data-visible', 'true');
-    clearTimeout(fadeTimer);
-    fadeTimer = setTimeout(() => counter.setAttribute('data-visible', 'false'), 1600);
+  const FLASH_DURATION = 1600;
+
+  function makeFlash(el){
+    let timer = null;
+    return function(){
+      el.setAttribute('data-visible', 'true');
+      clearTimeout(timer);
+      timer = setTimeout(() => el.setAttribute('data-visible', 'false'), FLASH_DURATION);
+    };
   }
 
-  let toggleFadeTimer = null;
-  function flashToggle(){
-    toggle.setAttribute('data-visible', 'true');
-    clearTimeout(toggleFadeTimer);
-    toggleFadeTimer = setTimeout(() => toggle.setAttribute('data-visible', 'false'), 1600);
-  }
+  const flashCounter = makeFlash(counter);
+  const flashToggle  = makeFlash(toggle);
 
   function render(){
     if (!TOTAL) return;
@@ -332,7 +334,6 @@
     togglePressTimer = setTimeout(() => {
       toggleLongFired = true;
       resetToStart();
-      flashCounter();
     }, 520);
   });
   toggle.addEventListener('pointerup', (e) => {
