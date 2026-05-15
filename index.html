@@ -143,13 +143,33 @@
   #toggle[data-mode="random"]{ color: oklch(0.68 0.17 148); }
   #toggle:active svg{ transform: scale(.88); }
 
+  .nav-hint{
+    position: fixed;
+    top: 50%;
+    transform: translateY(-50%);
+    font: 500 22px/1 var(--type-mono);
+    color: var(--ink-mute);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--fade-out) ease;
+    z-index: 5;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  .nav-hint[data-visible="true"]{
+    opacity: 1;
+    transition: opacity var(--fade-in) ease;
+  }
+  #navHintLeft  { left:  calc(14px + var(--safe-l)); }
+  #navHintRight { right: calc(14px + var(--safe-r)); }
+
   .sr-only{
     position:absolute; width:1px; height:1px; padding:0; margin:-1px;
     overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0;
   }
 
   @media print{
-    #counter, #toggle{ display: none; }
+    #counter, #toggle, .nav-hint{ display: none; }
     html, body{ background: #fff; }
   }
 </style>
@@ -173,6 +193,9 @@
         <path d="M4 4l5 5"></path>
       </svg>
     </button>
+
+    <div id="navHintLeft"  class="nav-hint" aria-hidden="true">◀</div>
+    <div id="navHintRight" class="nav-hint" aria-hidden="true">▶</div>
   </main>
 
 <script>
@@ -233,8 +256,13 @@
     };
   }
 
-  const flashCounter = makeFlash(counter);
-  const flashToggle  = makeFlash(toggle);
+  const navHintLeft  = document.getElementById('navHintLeft');
+  const navHintRight = document.getElementById('navHintRight');
+
+  const flashCounter   = makeFlash(counter);
+  const flashToggle    = makeFlash(toggle);
+  const flashHintLeft  = makeFlash(navHintLeft);
+  const flashHintRight = makeFlash(navHintRight);
 
   function render(){
     if (!TOTAL) return;
@@ -253,6 +281,12 @@
   function advance(){
     if (!ready) return;
     index = (index + 1) % TOTAL;
+    render();
+  }
+
+  function back(){
+    if (!ready) return;
+    index = (index - 1 + TOTAL) % TOTAL;
     render();
   }
 
@@ -286,8 +320,17 @@
   let pressTimer = null;
   let holdTimer = null;
   let holdActive = false;
+  let pressDir = 1; // 1 = forward, -1 = back
   const TAP_LIMIT = 320;
   const HOLD_START_DELAY = 340;
+
+  function dirFromEvent(e){
+    return e.clientX < window.innerWidth / 2 ? -1 : 1;
+  }
+
+  function flashHintFor(dir){
+    (dir < 0 ? flashHintLeft : flashHintRight)();
+  }
 
   function startHold(){
     holdActive = true;
@@ -296,7 +339,7 @@
     const min = 55;
     const decay = 0.86;
     (function tick(){
-      advance();
+      pressDir < 0 ? back() : advance();
       delay = Math.max(min, delay * decay);
       holdTimer = setTimeout(tick, delay);
     })();
@@ -315,13 +358,17 @@
     e.preventDefault();
     if (!ready) return;
     pressStart = Date.now();
+    pressDir = dirFromEvent(e);
+    flashHintFor(pressDir);
     pressTimer = setTimeout(() => { pressTimer = null; startHold(); }, HOLD_START_DELAY);
   });
   app.addEventListener('pointerup', (e) => {
     if (e.target.closest('#toggle')) return;
     e.preventDefault();
     const wasHold = endHold();
-    if (!wasHold && Date.now() - pressStart < TAP_LIMIT) advance();
+    if (!wasHold && Date.now() - pressStart < TAP_LIMIT){
+      pressDir < 0 ? back() : advance();
+    }
   });
   app.addEventListener('pointercancel', endHold);
   app.addEventListener('pointerleave', endHold);
@@ -349,7 +396,9 @@
   /* ---- Keyboard ---- */
   window.addEventListener('keydown', (e) => {
     if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'Enter'){
-      e.preventDefault(); advance();
+      e.preventDefault(); flashHintRight(); advance();
+    } else if (e.key === 'ArrowLeft'){
+      e.preventDefault(); flashHintLeft(); back();
     } else if (e.key === 'r' || e.key === 'R'){
       switchMode();
     } else if (e.key === 'Home' || e.key === '0'){
