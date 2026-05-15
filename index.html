@@ -15,7 +15,7 @@
     --bg:           var(--paper-pure);
     --fg:           var(--ink);
 
-    --pad-stage:    clamp(20px, 6vmin, 64px);
+    --pad-stage:    0px;
     --safe-t: env(safe-area-inset-top, 0px);
     --safe-r: env(safe-area-inset-right, 0px);
     --safe-b: env(safe-area-inset-bottom, 0px);
@@ -26,8 +26,6 @@
 
     --fade-in:  120ms;
     --fade-out: 700ms;
-
-    --art-max: min(86vmin, 920px);
   }
 
   *,*::before,*::after{ box-sizing: border-box; }
@@ -70,13 +68,13 @@
   }
   #art{
     display: block;
-    max-width: var(--art-max);
-    max-height: var(--art-max);
+    max-width: 90vw;
+    max-height: 90vh;
   }
   #art img{
     display: block;
-    max-width: var(--art-max);
-    max-height: var(--art-max);
+    max-width: 90vw;
+    max-height: 90vh;
     width: auto;
     height: auto;
     object-fit: contain;
