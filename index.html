@@ -430,6 +430,8 @@
       ready = true;
       render();
       flashToggle();
+      flashHintLeft();
+      flashHintRight();
     })
     .catch(() => {
       showMessage('failed to load');
