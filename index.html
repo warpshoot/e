@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>らくがきギャラリー</title>
+<title>e</title>
 <style>
   :root{
     --paper:        #fafaf7;
@@ -26,6 +26,8 @@
 
     --fade-in:  120ms;
     --fade-out: 700ms;
+
+    --art-max: min(86vmin, 920px);
   }
 
   *,*::before,*::after{ box-sizing: border-box; }
@@ -68,13 +70,13 @@
   }
   #art{
     display: block;
-    max-width: min(86vmin, 920px);
-    max-height: min(86vmin, 920px);
+    max-width: var(--art-max);
+    max-height: var(--art-max);
   }
   #art img{
     display: block;
-    max-width: min(86vmin, 920px);
-    max-height: min(86vmin, 920px);
+    max-width: var(--art-max);
+    max-height: var(--art-max);
     width: auto;
     height: auto;
     object-fit: contain;
@@ -124,9 +126,14 @@
     -webkit-tap-highlight-color: transparent;
     z-index: 6;
     color: var(--ink-mute);
-    transition: color 180ms ease;
+    opacity: 0;
+    transition: color 180ms ease, opacity var(--fade-out) ease;
   }
-  #toggle:hover{ color: var(--fg); }
+  #toggle:hover{ color: var(--fg); opacity: 1; }
+  #toggle[data-visible="true"]{
+    opacity: 1;
+    transition: color 180ms ease, opacity var(--fade-in) ease;
+  }
   #toggle svg{
     width: 20px; height: 20px;
     display: block;
@@ -148,16 +155,16 @@
 </style>
 </head>
 <body>
-  <main id="app" aria-label="らくがきギャラリー">
-    <h1 class="sr-only">らくがきギャラリー — タップで次へ、長押しで連続送り</h1>
+  <main id="app" aria-label="e">
+    <h1 class="sr-only">e — tap to advance, hold to browse</h1>
 
     <div id="frame" aria-live="polite">
-      <div id="art" role="img" aria-label="らくがき"></div>
+      <div id="art" role="img" aria-label="drawing"></div>
     </div>
 
     <div id="counter" aria-hidden="true">#01</div>
 
-    <button id="toggle" aria-label="シャッフルを切り替え（長押しで最初に戻る）" data-mode="chrono">
+    <button id="toggle" aria-label="toggle shuffle (hold to reset)" data-mode="chrono">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <path d="M16 3h5v5"></path>
         <path d="M4 20 21 3"></path>
@@ -215,19 +222,26 @@
     }
   }
 
-  let fadeTimer = null;
-  function flashCounter(){
-    counter.setAttribute('data-visible', 'true');
-    clearTimeout(fadeTimer);
-    fadeTimer = setTimeout(() => counter.setAttribute('data-visible', 'false'), 1600);
+  const FLASH_DURATION = 1600;
+
+  function makeFlash(el){
+    let timer = null;
+    return function(){
+      el.setAttribute('data-visible', 'true');
+      clearTimeout(timer);
+      timer = setTimeout(() => el.setAttribute('data-visible', 'false'), FLASH_DURATION);
+    };
   }
+
+  const flashCounter = makeFlash(counter);
+  const flashToggle  = makeFlash(toggle);
 
   function render(){
     if (!TOTAL) return;
     const id = currentId();
     const img = document.createElement('img');
     img.src = srcFor(id);
-    img.alt = 'らくがき ' + manifest[id].filename;
+    img.alt = manifest[id].filename;
     img.draggable = false;
     art.replaceChildren(img);
     counter.textContent = '#' + String(index + 1).padStart(2, '0');
@@ -255,6 +269,7 @@
     }
     toggle.setAttribute('data-mode', mode);
     flashCounter();
+    flashToggle();
   }
 
   function resetToStart(){
@@ -262,6 +277,7 @@
     if (mode === 'random') reshuffle();
     index = 0;
     render();
+    flashToggle();
   }
 
   /* ---- Tap / long-press on the stage ---- */
@@ -318,7 +334,6 @@
     togglePressTimer = setTimeout(() => {
       toggleLongFired = true;
       resetToStart();
-      flashCounter();
     }, 520);
   });
   toggle.addEventListener('pointerup', (e) => {
@@ -358,15 +373,16 @@
       manifest = Array.isArray(data) ? data : [];
       TOTAL = manifest.length;
       if (!TOTAL){
-        showMessage('画像がありません');
+        showMessage('no images');
         return;
       }
       reshuffle();
       ready = true;
       render();
+      flashToggle();
     })
     .catch(() => {
-      showMessage('画像一覧を読み込めませんでした');
+      showMessage('failed to load');
     });
 })();
 </script>
