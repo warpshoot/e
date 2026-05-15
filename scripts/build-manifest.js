@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 
-// Regenerates manifest.json from the PNG files in images/.
+// Regenerates manifest.json from the image files (PNG/JPG/JPEG) in images/.
 // Entries are sorted by filename in descending order so the newest
 // (YYYYMMDD-HHMM named) image comes first.
 
@@ -12,7 +12,7 @@ const ROOT = path.join(__dirname, '..');
 const IMAGES_DIR = path.join(ROOT, 'images');
 const MANIFEST_PATH = path.join(ROOT, 'manifest.json');
 
-const NAME_RE = /^(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})(?:-\d+)?\.png$/i;
+const NAME_RE = /^(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})(?:-\d+)?\.(?:png|jpe?g)$/i;
 
 function timestampFromName(name) {
   const m = NAME_RE.exec(name);
@@ -30,7 +30,7 @@ function main() {
   }
 
   const entries = files
-    .filter((f) => f.toLowerCase().endsWith('.png'))
+    .filter((f) => { const e = f.toLowerCase(); return e.endsWith('.png') || e.endsWith('.jpg') || e.endsWith('.jpeg'); })
     .sort((a, b) => (a < b ? 1 : a > b ? -1 : 0))
     .map((filename) => ({ filename, timestamp: timestampFromName(filename) }));
 
