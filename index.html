@@ -124,9 +124,14 @@
     -webkit-tap-highlight-color: transparent;
     z-index: 6;
     color: var(--ink-mute);
-    transition: color 180ms ease;
+    opacity: 0;
+    transition: color 180ms ease, opacity var(--fade-out) ease;
   }
-  #toggle:hover{ color: var(--fg); }
+  #toggle:hover{ color: var(--fg); opacity: 1; }
+  #toggle[data-visible="true"]{
+    opacity: 1;
+    transition: color 180ms ease, opacity var(--fade-in) ease;
+  }
   #toggle svg{
     width: 20px; height: 20px;
     display: block;
@@ -222,6 +227,13 @@
     fadeTimer = setTimeout(() => counter.setAttribute('data-visible', 'false'), 1600);
   }
 
+  let toggleFadeTimer = null;
+  function flashToggle(){
+    toggle.setAttribute('data-visible', 'true');
+    clearTimeout(toggleFadeTimer);
+    toggleFadeTimer = setTimeout(() => toggle.setAttribute('data-visible', 'false'), 1600);
+  }
+
   function render(){
     if (!TOTAL) return;
     const id = currentId();
@@ -255,6 +267,7 @@
     }
     toggle.setAttribute('data-mode', mode);
     flashCounter();
+    flashToggle();
   }
 
   function resetToStart(){
@@ -262,6 +275,7 @@
     if (mode === 'random') reshuffle();
     index = 0;
     render();
+    flashToggle();
   }
 
   /* ---- Tap / long-press on the stage ---- */
@@ -364,6 +378,7 @@
       reshuffle();
       ready = true;
       render();
+      flashToggle();
     })
     .catch(() => {
       showMessage('画像一覧を読み込めませんでした');
