@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>らくがきギャラリー</title>
+<title>e</title>
 <style>
   :root{
     --paper:        #fafaf7;
@@ -155,16 +155,16 @@
 </style>
 </head>
 <body>
-  <main id="app" aria-label="らくがきギャラリー">
-    <h1 class="sr-only">らくがきギャラリー — タップで次へ、長押しで連続送り</h1>
+  <main id="app" aria-label="e">
+    <h1 class="sr-only">e — tap to advance, hold to browse</h1>
 
     <div id="frame" aria-live="polite">
-      <div id="art" role="img" aria-label="らくがき"></div>
+      <div id="art" role="img" aria-label="drawing"></div>
     </div>
 
     <div id="counter" aria-hidden="true">#01</div>
 
-    <button id="toggle" aria-label="シャッフルを切り替え（長押しで最初に戻る）" data-mode="chrono">
+    <button id="toggle" aria-label="toggle shuffle (hold to reset)" data-mode="chrono">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <path d="M16 3h5v5"></path>
         <path d="M4 20 21 3"></path>
@@ -241,7 +241,7 @@
     const id = currentId();
     const img = document.createElement('img');
     img.src = srcFor(id);
-    img.alt = 'らくがき ' + manifest[id].filename;
+    img.alt = manifest[id].filename;
     img.draggable = false;
     art.replaceChildren(img);
     counter.textContent = '#' + String(index + 1).padStart(2, '0');
@@ -373,7 +373,7 @@
       manifest = Array.isArray(data) ? data : [];
       TOTAL = manifest.length;
       if (!TOTAL){
-        showMessage('画像がありません');
+        showMessage('no images');
         return;
       }
       reshuffle();
@@ -382,7 +382,7 @@
       flashToggle();
     })
     .catch(() => {
-      showMessage('画像一覧を読み込めませんでした');
+      showMessage('failed to load');
     });
 })();
 </script>
