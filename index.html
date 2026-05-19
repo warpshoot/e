@@ -317,6 +317,9 @@
   let holdTimer = null;
   let holdActive = false;
   let pressDir = 1; // 1 = forward, -1 = back
+  let activePointerId = null;
+  let multiTouchAborted = false;
+  const activePointers = new Set();
   const TAP_LIMIT = 320;
   const HOLD_START_DELAY = 340;
 
@@ -349,25 +352,55 @@
     return was;
   }
 
+  function abortPress(){
+    endHold();
+    activePointerId = null;
+    multiTouchAborted = true;
+  }
+
   app.addEventListener('pointerdown', (e) => {
     if (e.target.closest('#toggle')) return;
+    activePointers.add(e.pointerId);
+    if (activePointers.size > 1){
+      abortPress();
+      return;
+    }
     e.preventDefault();
     if (!ready) return;
+    multiTouchAborted = false;
+    activePointerId = e.pointerId;
     pressStart = Date.now();
     pressDir = dirFromEvent(e);
     flashHintFor(pressDir);
     pressTimer = setTimeout(() => { pressTimer = null; startHold(); }, HOLD_START_DELAY);
   });
   app.addEventListener('pointerup', (e) => {
+    activePointers.delete(e.pointerId);
     if (e.target.closest('#toggle')) return;
+    if (multiTouchAborted){
+      if (activePointers.size === 0) multiTouchAborted = false;
+      return;
+    }
+    if (e.pointerId !== activePointerId) return;
     e.preventDefault();
+    activePointerId = null;
     const wasHold = endHold();
     if (!wasHold && Date.now() - pressStart < TAP_LIMIT){
       pressDir < 0 ? back() : advance();
     }
   });
-  app.addEventListener('pointercancel', endHold);
-  app.addEventListener('pointerleave', endHold);
+  app.addEventListener('pointercancel', (e) => {
+    activePointers.delete(e.pointerId);
+    abortPress();
+    if (activePointers.size === 0) multiTouchAborted = false;
+  });
+  app.addEventListener('pointerleave', (e) => {
+    activePointers.delete(e.pointerId);
+    if (e.pointerId === activePointerId){
+      endHold();
+      activePointerId = null;
+    }
+  });
 
   /* ---- Toggle: short-press = mode switch, long-press = reset ---- */
   let togglePressTimer = null;
